@@ -11,180 +11,210 @@
       background-color: #f4f4f4;
       padding: 20px;
     }
-    textarea, button, input {
+    select, button, input {
       margin: 10px 0;
-    }
-    textarea {
-      width: 90%;
-      max-width: 500px;
-      height: 100px;
       padding: 10px;
-    }
-    button {
-      padding: 10px 20px;
       font-size: 16px;
-      background-color: #007bff;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
     }
-    button:hover {
-      background-color: #0056b3;
+    .password-wrapper {
+      display: inline-flex;
+      align-items: center;
     }
-    h3 {
-      margin-top: 30px;
+    .password-wrapper input {
+      margin-right: 5px;
     }
-    ul {
-      list-style-type: none;
-      padding: 0;
-    }
-    li {
-      margin: 5px 0;
+    .restaurant-item {
+      margin: 10px 0;
       padding: 10px;
       background-color: #ffffff;
       border-radius: 5px;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     }
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 </head>
 <body>
   <h1>Restaurant Picker</h1>
-  <p>Enter your name and restaurant names:</p>
-  <input type="text" id="username" placeholder="Enter your name" required><br>
-  <textarea id="input" placeholder="Enter restaurant names separated by commas"></textarea><br>
-  <button id="pick-button">Pick a Restaurant</button>
-  <button id="clear-leaderboard-button">Clear Leaderboard</button>
-  <h2 id="result">Result will appear here</h2>
-  <h3>Leaderboard</h3>
-  <ul id="leaderboard"></ul>
+  <p>Select your name, enter your password, and pick a restaurant:</p>
+  <select id="user-select">
+    <option value="" disabled selected>Select your name</option>
+    <option value="David">David</option>
+    <option value="Kevin">Kevin</option>
+    <option value="Earl">Earl</option>
+    <option value="Shaay">Shaay</option>
+    <option value="VaLlarey">VaLlarey</option>
+    <option value="Steven">Steven</option>
+    <option value="Jessica">Jessica</option>
+    <option value="Lawrence">Lawrence</option>
+    <option value="Bre">Bre</option>
+    <option value="Brandon">Brandon</option>
+    <option value="Geiser">Geiser</option>
+    <option value="Lax">Lax</option>
+    <option value="Josh">Josh</option>
+  </select>
+  <br>
+  <div class="password-wrapper">
+    <input type="password" id="user-password" placeholder="Enter your password" />
+    <button id="toggle-password" type="button">👁️</button>
+  </div>
+  <br>
+  <select id="restaurant-select">
+    <option value="" disabled selected>Select a restaurant</option>
+  </select>
+  <br>
+  <button id="submit-button">Lock Selection</button>
+  <h2>Selections</h2>
+  <div id="selections"></div>
 
-  <!-- Firebase SDKs -->
-  <script type="module">
-    // Import the functions you need from the Firebase SDKs
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
-    import { getDatabase, ref, update, onValue } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-database.js";
+  <h2>Admin Controls</h2>
+  <button id="reset-button">Reset App</button>
 
-    // Your web app's Firebase configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyC-5yfSlrlINIXHHQuwIpmh7G4PIG39Mq8",
-      authDomain: "restaurant-picker-f2f45.firebaseapp.com",
-      databaseURL: "https://restaurant-picker-f2f45-default-rtdb.firebaseio.com",
-      projectId: "restaurant-picker-f2f45",
-      storageBucket: "restaurant-picker-f2f45.firebasestorage.app",
-      messagingSenderId: "714231697522",
-      appId: "1:714231697522:web:66a4cd57f9c4d4f14db2eb",
-      measurementId: "G-5W9E1LYYX1"
-    };
+  <h2>Change Password</h2>
+  <p>Change your password:</p>
+  <input type="password" id="old-password" placeholder="Enter your old password" />
+  <br>
+  <input type="password" id="new-password" placeholder="Enter your new password" />
+  <br>
+  <button id="change-password-button">Change Password</button>
 
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-
-    // Admin password for leaderboard clearing
+  <script>
+    const encryptionKey = "encryption_key";
     const adminPassword = "admin123";
 
-    // Check for suspicious names
-    function isNameSuspicious(name) {
-      const suspiciousPatterns = [/stan/i, /love/i];
-      return suspiciousPatterns.some((pattern) => pattern.test(name));
+    // load from localStorage
+    const encryptedPasswords = JSON.parse(localStorage.getItem("encryptedPasswords")) || {
+      David: CryptoJS.AES.encrypt("david123", "encryption_key").toString(),
+      Kevin: CryptoJS.AES.encrypt("kevin123", "encryption_key").toString(),
+      Earl: CryptoJS.AES.encrypt("earl123", "encryption_key").toString(),
+      Shaay: CryptoJS.AES.encrypt("shaay123", "encryption_key").toString(),
+      VaLlarey: CryptoJS.AES.encrypt("vallarey123", "encryption_key").toString(),
+      Steven: CryptoJS.AES.encrypt("steven123", "encryption_key").toString(),
+      Jessica: CryptoJS.AES.encrypt("jessica123", "encryption_key").toString(),
+      Lawrence: CryptoJS.AES.encrypt("lawrence123", "encryption_key").toString(),
+      Bre: CryptoJS.AES.encrypt("bre123", "encryption_key").toString(),
+      Brandon: CryptoJS.AES.encrypt("brandon123", "encryption_key").toString(),
+      Geiser: CryptoJS.AES.encrypt("geiser123", "encryption_key").toString(),
+      Lax: CryptoJS.AES.encrypt("lax123", "encryption_key").toString(),
+      Josh: CryptoJS.AES.encrypt("josh123", "encryption_key").toString()
+    };
+
+    const selections = JSON.parse(localStorage.getItem("selections")) || {};
+    const restaurantCounts = JSON.parse(localStorage.getItem("restaurantCounts")) || {};
+
+    const restaurants = ["Archi's (Thai)", "Blaze Pizza", "Buffalo Wild Wings", "Burger King", 
+                         "California Fish Grill", "Cheba Hut", "Chipotle", "Del Taco", "Habit Burger", 
+                         "Little Caesar's", "McDonalds", "Matiki Island BBQ", "Papa Johns", "Pizza Hut",
+                         "Raising Cane's", "SoHo Sushi Burrito", "Subway", "Taco Bell", "Teriyaki Madness", "Wingstop"];
+
+    function saveState() {
+      localStorage.setItem("encryptedPasswords", JSON.stringify(encryptedPasswords));
+      localStorage.setItem("selections", JSON.stringify(selections));
+      localStorage.setItem("restaurantCounts", JSON.stringify(restaurantCounts));
     }
 
-    // Validate restaurant with DoorDash
-    async function validateWithDoorDash(restaurant) {
-      const apiUrl = `https://api.doordash.com/v2/search?q=${encodeURIComponent(restaurant)}`;
-      try {
-        const response = await fetch(apiUrl);
-        if (!response.ok) throw new Error("Failed to validate with DoorDash.");
-        const data = await response.json();
-        return data.merchants.some((merchant) => merchant.name.toLowerCase() === restaurant.toLowerCase());
-      } catch (error) {
-        console.error("DoorDash validation failed:", error);
-        return false;
-      }
+    function decryptPassword(encrypted) {
+      return CryptoJS.AES.decrypt(encrypted, encryptionKey).toString(CryptoJS.enc.Utf8);
     }
 
-    // Pick a random restaurant
-    function pickPlace() {
-    const username = document.getElementById("username").value.trim();
-    const input = document.getElementById("input").value;
-    const places = input.split(",").map((place) => place.trim()).filter((place) => place);
-
-    if (!username) {
-      alert("Please enter your name.");
-      return;
+    function encryptPassword(password) {
+      return CryptoJS.AES.encrypt(password, encryptionKey).toString();
     }
 
-    if (places.length === 0) {
-      alert("Please enter at least one restaurant.");
-      return;
-    }
-
-    // Pick a random place
-    const randomPlace = places[Math.floor(Math.random() * places.length)];
-
-    // Update Firebase with the random choice using a transaction
-    const placeRef = ref(db, `places/${randomPlace}`);
-    update(placeRef, {
-      pickedBy: username
-    });
-
-    // Use transaction to increment the count
-    placeRef.transaction((currentData) => {
-      if (currentData) {
-        currentData.count = (currentData.count || 0) + 1;
-      } else {
-        currentData = {
-          pickedBy: username,
-          count: 1
-        };
-      }
-      return currentData;
-    });
-
-    document.getElementById("result").innerText = `Thank you, ${username}. You should eat at: ${randomPlace}`;
-  }
-
-
-    // Clear leaderboard for admin only
-    function clearLeaderboard() {
-      const password = prompt("Enter admin password to clear leaderboard:");
-      if (password !== adminPassword) {
-        alert("Incorrect password. You are not authorized to perform this action.");
-        return;
-      }
-
-      // Clear leaderboard in Firebase
-      const leaderboardRef = ref(db, "places");
-      update(leaderboardRef, null).then(() => {
-        alert("Leaderboard cleared successfully.");
-      }).catch((error) => {
-        console.error("Error clearing leaderboard:", error);
-        alert("Failed to clear leaderboard.");
+    function populateDropdowns() {
+      const restaurantDropdown = document.getElementById("restaurant-select");
+      restaurantDropdown.innerHTML = '<option value="" disabled selected>Select a restaurant</option>';
+      restaurants.forEach((restaurant) => {
+        const option = document.createElement("option");
+        option.value = restaurant;
+        option.textContent = restaurant;
+        restaurantDropdown.appendChild(option);
       });
     }
 
-    // Listen for leaderboard updates
-    const leaderboardRef = ref(db, "places");
-    onValue(leaderboardRef, (snapshot) => {
-      const leaderboard = snapshot.val();
-      const leaderboardElement = document.getElementById("leaderboard");
-      leaderboardElement.innerHTML = ""; // Clear existing leaderboard
-
-      if (leaderboard) {
-        const sortedPlaces = Object.entries(leaderboard).sort(([, a], [, b]) => b.count - a.count);
-
-        sortedPlaces.forEach(([place, data]) => {
-          const li = document.createElement("li");
-          li.textContent = `${place} (${data.count || 0} picks, last picked by ${data.pickedBy || "Unknown"})`;
-          leaderboardElement.appendChild(li);
-        });
+    function updateSelectionsDisplay() {
+      const selectionsDiv = document.getElementById("selections");
+      selectionsDiv.innerHTML = "";
+      for (const [user, restaurant] of Object.entries(selections)) {
+        const count = restaurantCounts[restaurant] || 1;
+        const div = document.createElement("div");
+        div.classList.add("restaurant-item");
+        div.textContent = `${user} locked in: ${restaurant} (${count} pick${count > 1 ? "s" : ""})`;
+        selectionsDiv.appendChild(div);
       }
-    });
+    }
 
-    // Attach event listeners
-    document.getElementById("pick-button").addEventListener("click", pickPlace);
-    document.getElementById("clear-leaderboard-button").addEventListener("click", clearLeaderboard);
+    function lockSelection() {
+      const user = document.getElementById("user-select").value;
+      const password = document.getElementById("user-password").value.trim();
+      const restaurant = document.getElementById("restaurant-select").value;
+
+      if (!user || !password || !restaurant) {
+        alert("Please complete all fields.");
+        return;
+      }
+
+      if (decryptPassword(encryptedPasswords[user]) !== password) {
+        alert("Incorrect password. Please try again.");
+        return;
+      }
+
+      if (selections[user]) {
+        alert(`${user} has already locked in a restaurant.`);
+        return;
+      }
+
+      selections[user] = restaurant;
+      restaurantCounts[restaurant] = (restaurantCounts[restaurant] || 0) + 1;
+
+      saveState();
+      updateSelectionsDisplay();
+      alert(`${user} successfully locked in ${restaurant}!`);
+    }
+
+    function resetApp() {
+      const inputPassword = prompt("Enter admin password to reset:");
+      if (inputPassword === adminPassword) {
+        localStorage.clear();
+        location.reload();
+      } else {
+        alert("Incorrect admin password. Reset aborted.");
+      }
+    }
+
+    function changePassword() {
+      const user = document.getElementById("user-select").value;
+      const oldPassword = document.getElementById("old-password").value.trim();
+      const newPassword = document.getElementById("new-password").value.trim();
+
+      if (!user || !oldPassword || !newPassword) {
+        alert("Please complete all fields.");
+        return;
+      }
+
+      if (decryptPassword(encryptedPasswords[user]) !== oldPassword) {
+        alert("Incorrect old password.");
+        return;
+      }
+
+      encryptedPasswords[user] = encryptPassword(newPassword);
+      saveState();
+      alert("Password updated successfully!");
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      populateDropdowns();
+      updateSelectionsDisplay();
+
+      document.getElementById("submit-button").addEventListener("click", lockSelection);
+      document.getElementById("reset-button").addEventListener("click", resetApp);
+      document.getElementById("change-password-button").addEventListener("click", changePassword);
+
+      document.getElementById("toggle-password").addEventListener("click", function () {
+        const passwordInput = document.getElementById("user-password");
+        passwordInput.type = passwordInput.type === "password" ? "text" : "password";
+        this.textContent = passwordInput.type === "password" ? "👁️" : "🙈";
+      });
+    });
   </script>
 </body>
 </html>
